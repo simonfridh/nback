@@ -77,7 +77,7 @@ class GameVM(
 
     override fun startGame() {
         job?.cancel()  // Cancel any existing game loop
-        _gameState.value = GameState()
+        _gameState.value = _gameState.value.copy(eventValue = -1, turnCount = 0) //Reset game data before new game
 
         // Get the events from our C-model (returns IntArray, so we need to convert to Array<Int>)
         events = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray()  // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input

@@ -86,13 +86,13 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ){
-                if (gameState.eventValue != -1) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = "Current eventValue is: ${gameState.eventValue}, TURN: ${gameState.turnCount}",
-                        textAlign = TextAlign.Center
-                    )
-                }
+
+                Text(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = "Current eventValue is: ${gameState.eventValue}, TURN: ${gameState.turnCount}",
+                    textAlign = TextAlign.Center
+                )
+
 
                 //GRID
                 for (row in 0 until gridSize) {
@@ -127,7 +127,6 @@ fun GameScreen(
                         }
                     }
                 }
-
             }
 
             //BOTTOM SECTION (BUTTONS)
