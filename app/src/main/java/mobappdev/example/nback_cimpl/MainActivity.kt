@@ -12,6 +12,12 @@ import mobappdev.example.nback_cimpl.ui.screens.HomeScreen
 import mobappdev.example.nback_cimpl.ui.theme.NBack_CImplTheme
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameVM
 
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import mobappdev.example.nback_cimpl.ui.screens.GameScreen
+import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
+
 /**
  * This is the MainActivity of the application
  *
@@ -37,12 +43,35 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     // Instantiate the viewmodel
-                    val gameViewModel: GameVM = viewModel(
+                    val gameViewModel: GameViewModel = viewModel<GameVM>(
                         factory = GameVM.Factory
                     )
+                    val navController = rememberNavController()
 
-                    // Instantiate the homescreen
-                    HomeScreen(vm = gameViewModel)
+                    NavHost(
+                        navController = navController,
+                        startDestination = "HomeScreen"
+                    ) {
+                        composable("HomeScreen") {
+                            HomeScreen(
+                                vm = gameViewModel,
+                                onStartGame = {
+                                    navController.navigate("GameScreen")
+                                }
+                            )
+                        }
+                        composable("GameScreen") {
+                            GameScreen(
+                                vm = gameViewModel,
+                                onBackToHome = {
+                                    navController.navigate("HomeScreen")
+                                }
+                            )
+                        }
+                    }
+
+
+
                 }
             }
         }

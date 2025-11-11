@@ -77,6 +77,7 @@ class GameVM(
 
     override fun startGame() {
         job?.cancel()  // Cancel any existing game loop
+        _gameState.value = GameState()
 
         // Get the events from our C-model (returns IntArray, so we need to convert to Array<Int>)
         events = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray()  // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
@@ -104,8 +105,11 @@ class GameVM(
 
     private suspend fun runVisualGame(events: Array<Int>){
         // Todo: Replace this code for actual game code
+
+
+
         for (value in events) {
-            _gameState.value = _gameState.value.copy(eventValue = value)
+            _gameState.value = _gameState.value.copy(eventValue = value, turnCount = _gameState.value.turnCount+1)
             delay(eventInterval)
         }
 
@@ -144,7 +148,8 @@ enum class GameType{
 data class GameState(
     // You can use this state to push values from the VM to your UI.
     val gameType: GameType = GameType.Visual,  // Type of the game
-    val eventValue: Int = -1  // The value of the array string
+    val eventValue: Int = -1,  // The value of the array string
+    val turnCount: Int = 0
 )
 
 class FakeVM: GameViewModel{
