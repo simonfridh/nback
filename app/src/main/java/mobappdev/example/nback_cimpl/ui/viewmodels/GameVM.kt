@@ -61,8 +61,7 @@ class GameVM(
     override val highscore: StateFlow<Int>
         get() = _highscore
 
-    // nBack is currently hardcoded
-    override val nBack: Int = 2
+    override val nBack: Int = 2  // TODO: nBack is currently hardcoded
 
     private var job: Job? = null  // coroutine job for the game event
     private val eventInterval: Long = 2000L  // 2000 ms (2s)
@@ -77,7 +76,9 @@ class GameVM(
 
     override fun startGame() {
         job?.cancel()  // Cancel any existing game loop
-        _gameState.value = _gameState.value.copy(eventValue = -1, turnCount = 0) //Reset game data before new game
+
+        _gameState.value = _gameState.value.copy(eventValue = -1, turnCount = 0)
+        _score.value = 0
 
         // Get the events from our C-model (returns IntArray, so we need to convert to Array<Int>)
         events = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray()  // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
@@ -89,15 +90,28 @@ class GameVM(
                 GameType.AudioVisual -> runAudioVisualGame()
                 GameType.Visual -> runVisualGame(events)
             }
-            // Todo: update the highscore
+            if(_score.value > _highscore.value) {
+                userPreferencesRepository.saveHighScore(_score.value)
+            }
         }
     }
 
+    /**
+     * Todo: This function should check if there is a match when the user presses a match button
+     * Make sure the user can only register a match once for each event.
+     */
     override fun checkMatch() {
-        /**
-         * Todo: This function should check if there is a match when the user presses a match button
-         * Make sure the user can only register a match once for each event.
-         */
+        val currentEventValue = _gameState.value.eventValue
+        val currentTurn = _gameState.value.turnCount
+        val guessStatus = _gameState.value.guessStatus
+
+        if(currentTurn-nBack-1 < 0 || guessStatus != GuessStatus.NotGuessed) return
+
+        if(currentEventValue == events[currentTurn-nBack-1]){
+            _score.value++
+            _gameState.value = _gameState.value.copy(guessStatus = GuessStatus.Correct)
+        }
+        else _gameState.value = _gameState.value.copy(guessStatus = GuessStatus.Incorrect)
     }
     private fun runAudioGame() {
         // Todo: Make work for Basic grade
@@ -105,14 +119,16 @@ class GameVM(
 
     private suspend fun runVisualGame(events: Array<Int>){
         // Todo: Replace this code for actual game code
-
-
+        delay(eventInterval)
 
         for (value in events) {
-            _gameState.value = _gameState.value.copy(eventValue = value, turnCount = _gameState.value.turnCount+1)
+            _gameState.value = _gameState.value.copy(
+                eventValue = value,
+                turnCount = _gameState.value.turnCount + 1,
+                guessStatus = GuessStatus.NotGuessed
+            )
             delay(eventInterval)
         }
-
     }
 
     private fun runAudioVisualGame(){
@@ -145,11 +161,19 @@ enum class GameType{
     AudioVisual
 }
 
+enum class GuessStatus{ //Used for locking and showing feedback in the ui
+    NotGuessed,
+    Correct,
+    Incorrect
+}
+
+
 data class GameState(
     // You can use this state to push values from the VM to your UI.
     val gameType: GameType = GameType.Visual,  // Type of the game
     val eventValue: Int = -1,  // The value of the array string
-    val turnCount: Int = 0
+    val turnCount: Int = 0,
+    val guessStatus: GuessStatus = GuessStatus.NotGuessed
 )
 
 class FakeVM: GameViewModel{

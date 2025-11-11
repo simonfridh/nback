@@ -4,36 +4,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import mobappdev.example.nback_cimpl.R
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameType
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
@@ -56,14 +46,10 @@ fun HomeScreen(
     vm: GameViewModel,
     onStartGame: () -> Unit
 ) {
-    val highscore by vm.highscore.collectAsState()  // Highscore is its own StateFlow
+    val highscore by vm.highscore.collectAsState()
     val gameState by vm.gameState.collectAsState()
-    val snackBarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackBarHostState) }
-    ) {
+    Scaffold {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -86,28 +72,66 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
 
-
-            
-            // Todo: You'll probably want to change this "BOX" part of the composable
-            Box(
+            Column(
                 modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Column(horizontalAlignment = Alignment.Start){
+                    Text("Type: ${gameState.gameType}")
+                    Text("Turns: 10")  //TODO: currently hardcoded as there is no option to change these
+                    Text("Interval: 2s")
+                    Text("N: 2")
+                }
+
+
                 Column(
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-
-                    Text(gameState.gameType.toString())
-
-                    Button(onClick = { vm.setGameType(GameType.Visual) }) {
-                        Text(text = "Visual")
+                    Button(
+                        onClick = { vm.setGameType(GameType.Visual) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if(gameState.gameType == GameType.Visual) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.inverseOnSurface
+                        )
+                    ) {
+                        Text(
+                            text = "Visual",
+                            color =
+                                if(gameState.gameType == GameType.Visual) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                    Button(onClick = { vm.setGameType(GameType.Audio) }) {
-                        Text(text = "Audio")
+                    Button(
+                        onClick = { vm.setGameType(GameType.Audio) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if(gameState.gameType == GameType.Audio) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.inverseOnSurface
+                        )
+                    ) {
+                        Text(
+                            text = "Audio",
+                            color =
+                                if(gameState.gameType == GameType.Audio) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                    Button(onClick = { vm.setGameType(GameType.AudioVisual) }) {
-                        Text(text = "AudioVisual")
+                    Button(
+                        onClick = { vm.setGameType(GameType.AudioVisual) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if(gameState.gameType == GameType.AudioVisual) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.inverseOnSurface
+                        )
+                    ) {
+                        Text(
+                            text = "AudioVisual",
+                            color =
+                                if(gameState.gameType == GameType.AudioVisual) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurface
+                        )
                     }
 
                 }
@@ -138,7 +162,6 @@ fun HomeScreen(
 @Preview
 @Composable
 fun HomeScreenPreview() {
-    // Since I am injecting a VM into my homescreen that depends on Application context, the preview doesn't work.
     Surface {
         HomeScreen(
             FakeVM(),

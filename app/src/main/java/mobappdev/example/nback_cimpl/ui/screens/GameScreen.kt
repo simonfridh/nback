@@ -1,5 +1,7 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
+import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -11,8 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -22,6 +27,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Text
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,6 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,23 +47,56 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.R
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
+import mobappdev.example.nback_cimpl.ui.viewmodels.GameType
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
+import mobappdev.example.nback_cimpl.ui.viewmodels.GuessStatus
+import org.w3c.dom.Text
+import java.util.Locale
 
 @Composable
 fun GameScreen(
     vm: GameViewModel,
     onBackToHome: () -> Unit
 ) {
-    val highscore by vm.highscore.collectAsState()  // Highscore is its own StateFlow
+    val score by vm.score.collectAsState()
     val gameState by vm.gameState.collectAsState()
     val snackBarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val gridSize = 3
 
-    val gridSize = 3 //TODO: Bara en temporär siffra tills vidare
+    //TTS
+    val context = LocalContext.current
+    val tts = remember { mutableStateOf<TextToSpeech?>(null) }
 
+    //runs when screen is loaded
     LaunchedEffect(Unit) {
+        if (gameState.gameType == GameType.Visual || gameState.gameType == GameType.AudioVisual) {
+            if (tts.value == null) {
+                tts.value = TextToSpeech(context) { status ->
+                    if (status == TextToSpeech.SUCCESS) {
+                        tts.value?.language = Locale.US
+                    }
+                }
+            }
+        }
         vm.startGame()
     }
+
+    //runs when screen is closed
+    DisposableEffect(Unit) {
+        onDispose {
+            tts.value?.stop()
+            tts.value?.shutdown()
+        }
+    }
+
+    //TTS TODO: Ändra värden och se till så det står GameType.Audio här
+    if(gameState.gameType == GameType.Visual || gameState.gameType == GameType.AudioVisual){
+        LaunchedEffect(gameState.turnCount) {
+            tts.value?.speak("${gameState.eventValue}", TextToSpeech.QUEUE_FLUSH, null)
+        }
+    }
+
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
@@ -86,12 +127,26 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ){
-
-                Text(
-                    modifier = Modifier.fillMaxWidth(),
-                    text = "Current eventValue is: ${gameState.eventValue}, TURN: ${gameState.turnCount}",
-                    textAlign = TextAlign.Center
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .padding(24.dp, 5.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "TURN: ${gameState.turnCount}",
+                        textAlign = TextAlign.Start
+                    )
+                    Text(
+                        text = "eventValue: ${gameState.eventValue}",
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "SCORE: $score",
+                        textAlign = TextAlign.End
+                    )
+                }
 
 
                 //GRID
@@ -99,27 +154,26 @@ fun GameScreen(
                     Row() {
                         for (col in 0 until gridSize) {
                             Column(modifier = Modifier.padding(5.dp)) {
-                                var boxLightOn by remember { mutableStateOf(false) }
 
-                                LaunchedEffect(gameState.turnCount) {   //Needed for the flashing animation
+                                var boxLightOn by remember { mutableStateOf(false) }
+                                LaunchedEffect(gameState.turnCount) {   //runs everytime turncount updates
                                     if (gameState.eventValue == row * gridSize + col + 1) {
                                         boxLightOn = true
                                         delay(1000)
                                         boxLightOn = false
                                     }
                                     else if (boxLightOn) {
-                                        boxLightOn = false  //Solves issue with boxes staying lit up after changing screen mid game
+                                        boxLightOn = false  //solves issue with boxes staying on after changing screen
                                     }
                                 }
+
                                 val boxColor by animateColorAsState(
                                     targetValue = if (boxLightOn) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.surfaceVariant,
-
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .width(112.dp)
-                                        .height(112.dp)
+                                        .size( (336 / gridSize).dp)
                                         .padding(5.dp)
                                         .background(boxColor)
                                 )
@@ -137,39 +191,48 @@ fun GameScreen(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = {
-                    // Todo: change this button behaviour
-                    scope.launch {
-                        snackBarHostState.showSnackbar(
-                            message = "Hey! you clicked the audio button"
+                if(gameState.gameType == GameType.Audio || gameState.gameType == GameType.AudioVisual)
+                {
+                    Button(
+                        onClick = { vm.checkMatch() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when (gameState.guessStatus) {
+                                GuessStatus.Correct -> Color.Green
+                                GuessStatus.Incorrect -> Color.Red
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.sound_on),
+                            contentDescription = "Sound",
+                            modifier = Modifier
+                                .height(64.dp)
+                                .aspectRatio(3f / 2f)
                         )
                     }
-                }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.sound_on),
-                        contentDescription = "Sound",
-                        modifier = Modifier
-                            .height(64.dp)
-                            .aspectRatio(3f / 2f)
-                    )
                 }
-                Button(
-                    onClick = {
-                        // Todo: change this button behaviour
-                        scope.launch {
-                            snackBarHostState.showSnackbar(
-                                message = "Hey! you clicked the visual button",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                    }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.visual),
-                        contentDescription = "Visual",
-                        modifier = Modifier
-                            .height(64.dp)
-                            .aspectRatio(3f / 2f)
-                    )
+
+                if(gameState.gameType == GameType.Visual || gameState.gameType == GameType.AudioVisual)
+                {
+                    Button(
+                        onClick = { vm.checkMatch() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when (gameState.guessStatus) {
+                                GuessStatus.Correct -> Color.Green
+                                GuessStatus.Incorrect -> Color.Red
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.visual),
+                            contentDescription = "Visual",
+                            modifier = Modifier
+                                .height(64.dp)
+                                .aspectRatio(3f / 2f)
+                        )
+                    }
                 }
             }
         }
@@ -177,11 +240,9 @@ fun GameScreen(
 }
 
 
-
 @Preview
 @Composable
 fun GameScreenPreview() {
-    // Since I am injecting a VM into my homescreen that depends on Application context, the preview doesn't work.
     Surface {
         GameScreen(
             FakeVM(),
