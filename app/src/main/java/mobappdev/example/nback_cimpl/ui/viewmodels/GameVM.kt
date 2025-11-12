@@ -32,8 +32,6 @@ import mobappdev.example.nback_cimpl.data.UserPreferencesRepository
  * Author: Yeetivity
  *
  */
-
-
 interface GameViewModel {
     val gameState: StateFlow<GameState>
     val score: StateFlow<Int>
@@ -211,6 +209,7 @@ class GameVM(
 
         if(gameState.value.gameType == GameType.Visual) return
         if(currentTurn - _nBack.value - 1 < 0 || guessStatus != GuessStatus.NotGuessed) return
+
         if((currentEventValue - 'A' + 1) == audioEvents[currentTurn-_nBack.value-1]){
             _score.value++
             _gameState.value = _gameState.value.copy(audioGuessStatus = GuessStatus.Correct)
@@ -232,7 +231,6 @@ class GameVM(
 
     private suspend fun runVisualGame(events: Array<Int>){
         delay(2000)
-
         for (value in events) {
             _gameState.value = _gameState.value.copy(
                 visualEventValue = value,
@@ -245,7 +243,6 @@ class GameVM(
 
     private suspend fun runAudioVisualGame(audioEvents: Array<Int>, visualEvents: Array<Int>){
         delay(2000)
-
         for (i in 0 until visualEvents.size) {
             _gameState.value = _gameState.value.copy(
                 audioEventValue = ('A' + audioEvents[i] - 1),
@@ -309,17 +306,16 @@ enum class GameType{
     AudioVisual
 }
 
-enum class GuessStatus{ //Used for locking and showing feedback in the ui
+enum class GuessStatus{ //Used for locking buttons and showing feedback in the ui
     NotGuessed,
     Correct,
     Incorrect
 }
 
-
 data class GameState(
     // You can use this state to push values from the VM to your UI.
-    val gameType: GameType = GameType.Visual,  // Type of the game
-    val visualEventValue: Int = -1,  // The value of the array string
+    val gameType: GameType = GameType.Visual,
+    val visualEventValue: Int = -1,
     val audioEventValue: Char = ' ',
     val turnCount: Int = 0,
     val visualGuessStatus: GuessStatus = GuessStatus.NotGuessed,
@@ -346,25 +342,17 @@ class FakeVM: GameViewModel{
         get() = MutableStateFlow(2).asStateFlow()
 
     override fun setGameType(gameType: GameType) {}
-
     override fun increaseNrOfTurns() {}
     override fun decreaseNrOfTurns() {}
-
     override fun increaseTimeInterval() {}
     override fun decreaseTimeInterval() {}
-
     override fun increaseNBack() {}
     override fun decreaseNBack() {}
-
     override fun increaseGridSize() {}
     override fun decreaseGridSize() {}
-
     override fun increaseNrOfLetters() {}
     override fun decreaseNrOfLetters() {}
-
     override fun startGame() {}
-
     override fun checkVisualMatch() {}
-
     override fun checkAudioMatch() {}
 }
