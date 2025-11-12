@@ -1,7 +1,6 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
 import android.speech.tts.TextToSpeech
-import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,14 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -44,13 +40,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import mobappdev.example.nback_cimpl.R
 import mobappdev.example.nback_cimpl.ui.viewmodels.FakeVM
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameType
 import mobappdev.example.nback_cimpl.ui.viewmodels.GameViewModel
 import mobappdev.example.nback_cimpl.ui.viewmodels.GuessStatus
-import org.w3c.dom.Text
 import java.util.Locale
 
 @Composable
@@ -70,7 +64,7 @@ fun GameScreen(
 
     //runs when screen is loaded
     LaunchedEffect(Unit) {
-        if (gameState.gameType == GameType.Visual || gameState.gameType == GameType.AudioVisual) {
+        if (gameState.gameType == GameType.Audio || gameState.gameType == GameType.AudioVisual) {
             if (tts.value == null) {
                 tts.value = TextToSpeech(context) { status ->
                     if (status == TextToSpeech.SUCCESS) {
@@ -90,10 +84,10 @@ fun GameScreen(
         }
     }
 
-    //TTS TODO: Ändra värden och se till så det står GameType.Audio här
-    if(gameState.gameType == GameType.Visual || gameState.gameType == GameType.AudioVisual){
+    //TTS
+    if(gameState.gameType == GameType.Audio || gameState.gameType == GameType.AudioVisual){
         LaunchedEffect(gameState.turnCount) {
-            tts.value?.speak("${gameState.eventValue}", TextToSpeech.QUEUE_FLUSH, null)
+            tts.value?.speak("${gameState.audioEventValue}", TextToSpeech.QUEUE_FLUSH, null, "${gameState.turnCount}")
         }
     }
 
@@ -127,10 +121,23 @@ fun GameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ){
+                //Game info
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth(0.95f)
-                        .padding(24.dp, 5.dp),
+                    modifier = Modifier.fillMaxWidth(0.95f).padding(24.dp, 5.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "visualEventValue: ${gameState.visualEventValue}",
+                        textAlign = TextAlign.Start
+                    )
+                    Text(
+                        text = "audioEventValue: ${gameState.audioEventValue}",
+                        textAlign = TextAlign.Start
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(0.95f).padding(24.dp, 5.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -139,15 +146,10 @@ fun GameScreen(
                         textAlign = TextAlign.Start
                     )
                     Text(
-                        text = "eventValue: ${gameState.eventValue}",
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
                         text = "SCORE: $score",
                         textAlign = TextAlign.End
                     )
                 }
-
 
                 //GRID
                 for (row in 0 until gridSize) {
@@ -157,7 +159,7 @@ fun GameScreen(
 
                                 var boxLightOn by remember { mutableStateOf(false) }
                                 LaunchedEffect(gameState.turnCount) {   //runs everytime turncount updates
-                                    if (gameState.eventValue == row * gridSize + col + 1) {
+                                    if (gameState.visualEventValue == row * gridSize + col + 1) {
                                         boxLightOn = true
                                         delay(1000)
                                         boxLightOn = false
@@ -183,6 +185,7 @@ fun GameScreen(
                 }
             }
 
+
             //BOTTOM SECTION (BUTTONS)
             Row(
                 modifier = Modifier
@@ -194,9 +197,9 @@ fun GameScreen(
                 if(gameState.gameType == GameType.Audio || gameState.gameType == GameType.AudioVisual)
                 {
                     Button(
-                        onClick = { vm.checkMatch() },
+                        onClick = { vm.checkAudioMatch() },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = when (gameState.guessStatus) {
+                            containerColor = when (gameState.audioGuessStatus) {
                                 GuessStatus.Correct -> Color.Green
                                 GuessStatus.Incorrect -> Color.Red
                                 else -> MaterialTheme.colorScheme.primary
@@ -216,9 +219,9 @@ fun GameScreen(
                 if(gameState.gameType == GameType.Visual || gameState.gameType == GameType.AudioVisual)
                 {
                     Button(
-                        onClick = { vm.checkMatch() },
+                        onClick = { vm.checkVisualMatch() },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = when (gameState.guessStatus) {
+                            containerColor = when (gameState.visualGuessStatus) {
                                 GuessStatus.Correct -> Color.Green
                                 GuessStatus.Incorrect -> Color.Red
                                 else -> MaterialTheme.colorScheme.primary

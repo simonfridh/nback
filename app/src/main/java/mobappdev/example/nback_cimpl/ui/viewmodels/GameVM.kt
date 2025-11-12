@@ -43,7 +43,8 @@ interface GameViewModel {
     fun setGameType(gameType: GameType)
     fun startGame()
 
-    fun checkMatch()
+    fun checkVisualMatch()
+    fun checkAudioMatch()
 }
 
 class GameVM(
@@ -62,33 +63,40 @@ class GameVM(
         get() = _highscore
 
     override val nBack: Int = 2  // TODO: nBack is currently hardcoded
-
     private var job: Job? = null  // coroutine job for the game event
     private val eventInterval: Long = 2000L  // 2000 ms (2s)
-
     private val nBackHelper = NBackHelper()  // Helper that generate the event array
-    private var events = emptyArray<Int>()  // Array with all events
+    private var visualEvents = emptyArray<Int>()  // Array with all visual events
+    private var audioEvents = emptyArray<Int>()  // Array with all audio events
 
     override fun setGameType(gameType: GameType) {
-        // update the gametype in the gamestate
         _gameState.value = _gameState.value.copy(gameType = gameType)
     }
 
     override fun startGame() {
         job?.cancel()  // Cancel any existing game loop
 
-        _gameState.value = _gameState.value.copy(eventValue = -1, turnCount = 0)
+        _gameState.value = _gameState.value.copy(
+            visualEventValue = -1,
+            audioEventValue = '0',
+            turnCount = 0,
+            visualGuessStatus = GuessStatus.NotGuessed,
+            audioGuessStatus = GuessStatus.NotGuessed
+            )
         _score.value = 0
 
         // Get the events from our C-model (returns IntArray, so we need to convert to Array<Int>)
-        events = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray()  // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
-        Log.d("GameVM", "The following sequence was generated: ${events.contentToString()}")
+        visualEvents = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray() // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
+        audioEvents = visualEvents.reversedArray()
+
+        Log.d("GameVM", "The following sequence was generated: ${visualEvents.contentToString()}")
+        Log.d("GameVM", "The following sequence was generated: ${audioEvents.contentToString()}")
 
         job = viewModelScope.launch {
             when (gameState.value.gameType) {
-                GameType.Audio -> runAudioGame()
-                GameType.AudioVisual -> runAudioVisualGame()
-                GameType.Visual -> runVisualGame(events)
+                GameType.Audio -> runAudioGame(audioEvents)
+                GameType.AudioVisual -> runAudioVisualGame(audioEvents, visualEvents)
+                GameType.Visual -> runVisualGame(visualEvents)
             }
             if(_score.value > _highscore.value) {
                 userPreferencesRepository.saveHighScore(_score.value)
@@ -100,39 +108,72 @@ class GameVM(
      * Todo: This function should check if there is a match when the user presses a match button
      * Make sure the user can only register a match once for each event.
      */
-    override fun checkMatch() {
-        val currentEventValue = _gameState.value.eventValue
+    override fun checkVisualMatch() {
+        val currentEventValue = _gameState.value.visualEventValue
         val currentTurn = _gameState.value.turnCount
-        val guessStatus = _gameState.value.guessStatus
+        val guessStatus = _gameState.value.visualGuessStatus
 
         if(currentTurn-nBack-1 < 0 || guessStatus != GuessStatus.NotGuessed) return
 
-        if(currentEventValue == events[currentTurn-nBack-1]){
+        if(currentEventValue == visualEvents[currentTurn-nBack-1]){
             _score.value++
-            _gameState.value = _gameState.value.copy(guessStatus = GuessStatus.Correct)
+            _gameState.value = _gameState.value.copy(visualGuessStatus = GuessStatus.Correct)
         }
-        else _gameState.value = _gameState.value.copy(guessStatus = GuessStatus.Incorrect)
-    }
-    private fun runAudioGame() {
-        // Todo: Make work for Basic grade
+        else _gameState.value = _gameState.value.copy(visualGuessStatus = GuessStatus.Incorrect)
     }
 
-    private suspend fun runVisualGame(events: Array<Int>){
-        // Todo: Replace this code for actual game code
-        delay(eventInterval)
+    override fun checkAudioMatch() {
+        val currentEventValue = _gameState.value.audioEventValue
+        val currentTurn = _gameState.value.turnCount
+        val guessStatus = _gameState.value.audioGuessStatus
+
+        if(currentTurn-nBack-1 < 0 || guessStatus != GuessStatus.NotGuessed) return
+        if((currentEventValue - 'A' + 1) == audioEvents[currentTurn-nBack-1]){
+            _score.value++
+            _gameState.value = _gameState.value.copy(audioGuessStatus = GuessStatus.Correct)
+        }
+        else _gameState.value = _gameState.value.copy(audioGuessStatus = GuessStatus.Incorrect)
+    }
+
+    private suspend fun runAudioGame(events: Array<Int>) {
+        delay(2000)
 
         for (value in events) {
             _gameState.value = _gameState.value.copy(
-                eventValue = value,
+                audioEventValue = ('A' + value - 1),          //Convert to letter
                 turnCount = _gameState.value.turnCount + 1,
-                guessStatus = GuessStatus.NotGuessed
+                audioGuessStatus = GuessStatus.NotGuessed
             )
             delay(eventInterval)
         }
     }
 
-    private fun runAudioVisualGame(){
-        // Todo: Make work for Higher grade
+    private suspend fun runVisualGame(events: Array<Int>){
+        delay(2000)
+
+        for (value in events) {
+            _gameState.value = _gameState.value.copy(
+                visualEventValue = value,
+                turnCount = _gameState.value.turnCount + 1,
+                visualGuessStatus = GuessStatus.NotGuessed
+            )
+            delay(eventInterval)
+        }
+    }
+
+    private suspend fun runAudioVisualGame(audioEvents: Array<Int>, visualEvents: Array<Int>){
+        delay(2000)
+
+        for (i in 0 until visualEvents.size) {
+            _gameState.value = _gameState.value.copy(
+                audioEventValue = ('A' + audioEvents[i] - 1),
+                visualEventValue = visualEvents[i],
+                turnCount = _gameState.value.turnCount + 1,
+                visualGuessStatus = GuessStatus.NotGuessed,
+                audioGuessStatus = GuessStatus.NotGuessed
+            )
+            delay(eventInterval)
+        }
     }
 
     companion object {
@@ -171,9 +212,11 @@ enum class GuessStatus{ //Used for locking and showing feedback in the ui
 data class GameState(
     // You can use this state to push values from the VM to your UI.
     val gameType: GameType = GameType.Visual,  // Type of the game
-    val eventValue: Int = -1,  // The value of the array string
+    val visualEventValue: Int = -1,  // The value of the array string
+    val audioEventValue: Char = '0',
     val turnCount: Int = 0,
-    val guessStatus: GuessStatus = GuessStatus.NotGuessed
+    val visualGuessStatus: GuessStatus = GuessStatus.NotGuessed,
+    val audioGuessStatus: GuessStatus = GuessStatus.NotGuessed
 )
 
 class FakeVM: GameViewModel{
@@ -192,6 +235,9 @@ class FakeVM: GameViewModel{
     override fun startGame() {
     }
 
-    override fun checkMatch() {
+    override fun checkVisualMatch() {
+    }
+
+    override fun checkAudioMatch() {
     }
 }
