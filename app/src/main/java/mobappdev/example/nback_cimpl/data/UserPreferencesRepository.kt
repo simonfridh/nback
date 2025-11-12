@@ -31,6 +31,12 @@ class UserPreferencesRepository (
 ){
     private companion object {
         val HIGHSCORE = intPreferencesKey("highscore")
+        val NROFTURNS = intPreferencesKey("nrofturns")
+        val TIMEINTERVAL = intPreferencesKey("timeinterval")
+        val NBACK = intPreferencesKey("nback")
+        val GRIDSIZE = intPreferencesKey("gridsize")
+        val NROFLETTERS = intPreferencesKey("nrofletters")
+
         const val TAG = "UserPreferencesRepo"
     }
 
@@ -46,10 +52,100 @@ class UserPreferencesRepository (
         .map { preferences ->
             preferences[HIGHSCORE] ?: 0
         }
-
     suspend fun saveHighScore(score: Int) {
         dataStore.edit { preferences ->
             preferences[HIGHSCORE] = score
+        }
+    }
+
+    val nrofturns: Flow<Int> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[NROFTURNS] ?: 10
+        }
+    suspend fun saveNrOfTurns(nrOfTurns: Int) {
+        dataStore.edit { preferences ->
+            preferences[NROFTURNS] = nrOfTurns
+        }
+        NROFTURNS
+    }
+
+    val timeinterval: Flow<Int> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[TIMEINTERVAL] ?: 2
+        }
+    suspend fun saveTimeInterval(timeInterval: Int) {
+        dataStore.edit { preferences ->
+            preferences[TIMEINTERVAL] = timeInterval
+        }
+    }
+
+    val nback: Flow<Int> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[NBACK] ?: 2
+        }
+    suspend fun saveNBack(nBack: Int) {
+        dataStore.edit { preferences ->
+            preferences[NBACK] = nBack
+        }
+    }
+
+    val gridsize: Flow<Int> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[GRIDSIZE] ?: 3
+        }
+    suspend fun saveGridSize(gridSize: Int) {
+        dataStore.edit { preferences ->
+            preferences[GRIDSIZE] = gridSize
+        }
+    }
+
+    val nrofletters: Flow<Int> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[NROFLETTERS] ?: 9
+        }
+    suspend fun saveNrOfLetters(nrOfLetters: Int) {
+        dataStore.edit { preferences ->
+            preferences[NROFLETTERS] = nrOfLetters
         }
     }
 }

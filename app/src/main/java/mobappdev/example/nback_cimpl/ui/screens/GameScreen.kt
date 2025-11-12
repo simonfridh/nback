@@ -18,8 +18,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Text
@@ -29,7 +27,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,9 +51,7 @@ fun GameScreen(
 ) {
     val score by vm.score.collectAsState()
     val gameState by vm.gameState.collectAsState()
-    val snackBarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val gridSize = 3
+    val gridSize = vm.gridSize.collectAsState()
 
     //TTS
     val context = LocalContext.current
@@ -91,10 +86,7 @@ fun GameScreen(
         }
     }
 
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackBarHostState) }
-    ) {
+    Scaffold {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -128,11 +120,11 @@ fun GameScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "visualEventValue: ${gameState.visualEventValue}",
+                        text = "Visual: ${gameState.visualEventValue}",
                         textAlign = TextAlign.Start
                     )
                     Text(
-                        text = "audioEventValue: ${gameState.audioEventValue}",
+                        text = "Audio: ${gameState.audioEventValue}",
                         textAlign = TextAlign.Start
                     )
                 }
@@ -152,14 +144,14 @@ fun GameScreen(
                 }
 
                 //GRID
-                for (row in 0 until gridSize) {
-                    Row() {
-                        for (col in 0 until gridSize) {
-                            Column(modifier = Modifier.padding(5.dp)) {
+                for (row in 0 until gridSize.value) {
+                    Row {
+                        for (col in 0 until gridSize.value) {
+                            Column(modifier = Modifier.padding((20 / gridSize.value).dp) ){
 
                                 var boxLightOn by remember { mutableStateOf(false) }
                                 LaunchedEffect(gameState.turnCount) {   //runs everytime turncount updates
-                                    if (gameState.visualEventValue == row * gridSize + col + 1) {
+                                    if (gameState.visualEventValue == row * gridSize.value + col + 1) {
                                         boxLightOn = true
                                         delay(1000)
                                         boxLightOn = false
@@ -175,8 +167,7 @@ fun GameScreen(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .size( (336 / gridSize).dp)
-                                        .padding(5.dp)
+                                        .size( (336 / gridSize.value).dp)
                                         .background(boxColor)
                                 )
                             }

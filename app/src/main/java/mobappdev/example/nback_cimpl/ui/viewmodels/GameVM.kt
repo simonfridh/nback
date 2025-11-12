@@ -38,11 +38,25 @@ interface GameViewModel {
     val gameState: StateFlow<GameState>
     val score: StateFlow<Int>
     val highscore: StateFlow<Int>
-    val nBack: Int
+    val nrOfTurns: StateFlow<Int>
+    val timeInterval: StateFlow<Int>
+    val nBack: StateFlow<Int>
+    val gridSize: StateFlow<Int>
+    val nrOfLetters: StateFlow<Int>
 
     fun setGameType(gameType: GameType)
-    fun startGame()
+    fun increaseNrOfTurns()
+    fun decreaseNrOfTurns()
+    fun increaseTimeInterval()
+    fun decreaseTimeInterval()
+    fun increaseNBack()
+    fun decreaseNBack()
+    fun increaseGridSize()
+    fun decreaseGridSize()
+    fun increaseNrOfLetters()
+    fun decreaseNrOfLetters()
 
+    fun startGame()
     fun checkVisualMatch()
     fun checkAudioMatch()
 }
@@ -62,35 +76,106 @@ class GameVM(
     override val highscore: StateFlow<Int>
         get() = _highscore
 
-    override val nBack: Int = 2  // TODO: nBack is currently hardcoded
+    private val _nrOfTurns = MutableStateFlow(10)
+    override val nrOfTurns: StateFlow<Int>
+        get() = _nrOfTurns
+
+    private val _timeInterval = MutableStateFlow(2)
+    override val timeInterval: StateFlow<Int>
+        get() = _timeInterval
+
+    private val _nBack = MutableStateFlow(2)
+    override val nBack: StateFlow<Int>
+        get() = _nBack
+
+    private val _gridSize = MutableStateFlow(3)
+    override val gridSize: StateFlow<Int>
+        get() = _gridSize
+
+    private val _nrOfLetters = MutableStateFlow(9)
+    override val nrOfLetters: StateFlow<Int>
+        get() = _nrOfLetters
+
     private var job: Job? = null  // coroutine job for the game event
-    private val eventInterval: Long = 2000L  // 2000 ms (2s)
     private val nBackHelper = NBackHelper()  // Helper that generate the event array
     private var visualEvents = emptyArray<Int>()  // Array with all visual events
     private var audioEvents = emptyArray<Int>()  // Array with all audio events
+
+
 
     override fun setGameType(gameType: GameType) {
         _gameState.value = _gameState.value.copy(gameType = gameType)
     }
 
+    //To limit the users input on the settings, simple + and - functions are used
+    //Looks a bit messy :D
+    override fun increaseNrOfTurns() {
+        viewModelScope.launch{ userPreferencesRepository.saveNrOfTurns(_nrOfTurns.value + 1) }
+    }
+    override fun decreaseNrOfTurns() {
+        if(_nrOfTurns.value <= 1) return
+        viewModelScope.launch{ userPreferencesRepository.saveNrOfTurns(_nrOfTurns.value - 1) }
+    }
+    override fun increaseTimeInterval() {
+        viewModelScope.launch{ userPreferencesRepository.saveTimeInterval(_timeInterval.value + 1) }
+    }
+    override fun decreaseTimeInterval() {
+        if(_timeInterval.value <= 1) return
+        viewModelScope.launch{ userPreferencesRepository.saveTimeInterval(_timeInterval.value - 1) }
+    }
+    override fun increaseNBack() {
+        viewModelScope.launch{ userPreferencesRepository.saveNBack(_nBack.value + 1) }
+    }
+    override fun decreaseNBack() {
+        if(_nBack.value <= 1) return
+        viewModelScope.launch{ userPreferencesRepository.saveNBack(_nBack.value - 1) }
+    }
+    override fun increaseGridSize() {
+        if(_gridSize.value >= 10) return
+        viewModelScope.launch{ userPreferencesRepository.saveGridSize(_gridSize.value + 1) }
+    }
+    override fun decreaseGridSize() {
+        if(_gridSize.value <= 2) return
+        viewModelScope.launch{ userPreferencesRepository.saveGridSize(_gridSize.value - 1) }
+    }
+    override fun increaseNrOfLetters() {
+        if(_gridSize.value >= 26) return
+        viewModelScope.launch{ userPreferencesRepository.saveNrOfLetters(_nrOfLetters.value + 1) }
+    }
+    override fun decreaseNrOfLetters() {
+        if(_nrOfLetters.value <= 3) return
+        viewModelScope.launch{ userPreferencesRepository.saveNrOfLetters(_nrOfLetters.value - 1) }
+    }
+
+
     override fun startGame() {
         job?.cancel()  // Cancel any existing game loop
 
-        _gameState.value = _gameState.value.copy(
+        _gameState.value = _gameState.value.copy( //Resetting gamevalues since they stay
             visualEventValue = -1,
-            audioEventValue = '0',
+            audioEventValue = ' ',
             turnCount = 0,
             visualGuessStatus = GuessStatus.NotGuessed,
             audioGuessStatus = GuessStatus.NotGuessed
             )
         _score.value = 0
 
-        // Get the events from our C-model (returns IntArray, so we need to convert to Array<Int>)
-        visualEvents = nBackHelper.generateNBackString(10, 9, 30, nBack).toList().toTypedArray() // Todo Higher Grade: currently the size etc. are hardcoded, make these based on user input
-        audioEvents = visualEvents.reversedArray()
+        visualEvents = nBackHelper.generateNBackString( //Fetching from C-Model
+            size = _nrOfTurns.value,
+            combinations = _gridSize.value * _gridSize.value,
+            percentMatch = 30,
+            nBack= _nBack.value
+        ).toList().toTypedArray()
 
-        Log.d("GameVM", "The following sequence was generated: ${visualEvents.contentToString()}")
-        Log.d("GameVM", "The following sequence was generated: ${audioEvents.contentToString()}")
+        audioEvents = nBackHelper.generateNBackString(  //Fetching from C-Model
+            size = _nrOfTurns.value,
+            combinations = _nrOfLetters.value,
+            percentMatch = 30,
+            nBack= _nBack.value
+        ).toList().toTypedArray().reversedArray() // Reversing to make sure its not the exact same as above
+
+        Log.d("GameVM", "The following visual sequence was generated: ${visualEvents.contentToString()}")
+        Log.d("GameVM", "The following audio sequence was generated: ${audioEvents.contentToString()}")
 
         job = viewModelScope.launch {
             when (gameState.value.gameType) {
@@ -104,18 +189,15 @@ class GameVM(
         }
     }
 
-    /**
-     * Todo: This function should check if there is a match when the user presses a match button
-     * Make sure the user can only register a match once for each event.
-     */
     override fun checkVisualMatch() {
         val currentEventValue = _gameState.value.visualEventValue
         val currentTurn = _gameState.value.turnCount
         val guessStatus = _gameState.value.visualGuessStatus
 
-        if(currentTurn-nBack-1 < 0 || guessStatus != GuessStatus.NotGuessed) return
+        if(gameState.value.gameType == GameType.Audio) return
+        if(currentTurn - _nBack.value - 1 < 0 || guessStatus != GuessStatus.NotGuessed) return
 
-        if(currentEventValue == visualEvents[currentTurn-nBack-1]){
+        if(currentEventValue == visualEvents[currentTurn-_nBack.value-1]){
             _score.value++
             _gameState.value = _gameState.value.copy(visualGuessStatus = GuessStatus.Correct)
         }
@@ -127,8 +209,9 @@ class GameVM(
         val currentTurn = _gameState.value.turnCount
         val guessStatus = _gameState.value.audioGuessStatus
 
-        if(currentTurn-nBack-1 < 0 || guessStatus != GuessStatus.NotGuessed) return
-        if((currentEventValue - 'A' + 1) == audioEvents[currentTurn-nBack-1]){
+        if(gameState.value.gameType == GameType.Visual) return
+        if(currentTurn - _nBack.value - 1 < 0 || guessStatus != GuessStatus.NotGuessed) return
+        if((currentEventValue - 'A' + 1) == audioEvents[currentTurn-_nBack.value-1]){
             _score.value++
             _gameState.value = _gameState.value.copy(audioGuessStatus = GuessStatus.Correct)
         }
@@ -137,14 +220,13 @@ class GameVM(
 
     private suspend fun runAudioGame(events: Array<Int>) {
         delay(2000)
-
         for (value in events) {
             _gameState.value = _gameState.value.copy(
                 audioEventValue = ('A' + value - 1),          //Convert to letter
                 turnCount = _gameState.value.turnCount + 1,
                 audioGuessStatus = GuessStatus.NotGuessed
             )
-            delay(eventInterval)
+            delay( (_timeInterval.value*1000).toLong() )
         }
     }
 
@@ -157,7 +239,7 @@ class GameVM(
                 turnCount = _gameState.value.turnCount + 1,
                 visualGuessStatus = GuessStatus.NotGuessed
             )
-            delay(eventInterval)
+            delay( (_timeInterval.value*1000).toLong() )
         }
     }
 
@@ -172,7 +254,7 @@ class GameVM(
                 visualGuessStatus = GuessStatus.NotGuessed,
                 audioGuessStatus = GuessStatus.NotGuessed
             )
-            delay(eventInterval)
+            delay( (_timeInterval.value*1000).toLong() )
         }
     }
 
@@ -190,6 +272,31 @@ class GameVM(
         viewModelScope.launch {
             userPreferencesRepository.highscore.collect {
                 _highscore.value = it
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.nrofturns.collect {
+                _nrOfTurns.value = it
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.timeinterval.collect {
+                _timeInterval.value = it
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.nback.collect {
+                _nBack.value = it
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.gridsize.collect {
+                _gridSize.value = it
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.nrofletters.collect {
+                _nrOfLetters.value = it
             }
         }
     }
@@ -213,7 +320,7 @@ data class GameState(
     // You can use this state to push values from the VM to your UI.
     val gameType: GameType = GameType.Visual,  // Type of the game
     val visualEventValue: Int = -1,  // The value of the array string
-    val audioEventValue: Char = '0',
+    val audioEventValue: Char = ' ',
     val turnCount: Int = 0,
     val visualGuessStatus: GuessStatus = GuessStatus.NotGuessed,
     val audioGuessStatus: GuessStatus = GuessStatus.NotGuessed
@@ -224,20 +331,40 @@ class FakeVM: GameViewModel{
         get() = MutableStateFlow(GameState()).asStateFlow()
     override val score: StateFlow<Int>
         get() = MutableStateFlow(2).asStateFlow()
+
     override val highscore: StateFlow<Int>
         get() = MutableStateFlow(42).asStateFlow()
-    override val nBack: Int
-        get() = 2
+    override val nrOfTurns: StateFlow<Int>
+        get() = MutableStateFlow(10).asStateFlow()
+    override val timeInterval: StateFlow<Int>
+        get() = MutableStateFlow(2).asStateFlow()
+    override val gridSize: StateFlow<Int>
+        get() = MutableStateFlow(3).asStateFlow()
+    override val nBack: StateFlow<Int>
+        get() = MutableStateFlow(2).asStateFlow()
+    override val nrOfLetters: StateFlow<Int>
+        get() = MutableStateFlow(2).asStateFlow()
 
-    override fun setGameType(gameType: GameType) {
-    }
+    override fun setGameType(gameType: GameType) {}
 
-    override fun startGame() {
-    }
+    override fun increaseNrOfTurns() {}
+    override fun decreaseNrOfTurns() {}
 
-    override fun checkVisualMatch() {
-    }
+    override fun increaseTimeInterval() {}
+    override fun decreaseTimeInterval() {}
 
-    override fun checkAudioMatch() {
-    }
+    override fun increaseNBack() {}
+    override fun decreaseNBack() {}
+
+    override fun increaseGridSize() {}
+    override fun decreaseGridSize() {}
+
+    override fun increaseNrOfLetters() {}
+    override fun decreaseNrOfLetters() {}
+
+    override fun startGame() {}
+
+    override fun checkVisualMatch() {}
+
+    override fun checkAudioMatch() {}
 }

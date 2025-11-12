@@ -1,13 +1,16 @@
 package mobappdev.example.nback_cimpl.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +50,13 @@ fun HomeScreen(
     onStartGame: () -> Unit
 ) {
     val highscore by vm.highscore.collectAsState()
+    val nrOfTurns by vm.nrOfTurns.collectAsState()
+    val timeInterval by vm.timeInterval.collectAsState()
+    val nBack by vm.nBack.collectAsState()
+    val gridSize by vm.gridSize.collectAsState()
+    val nrOfLetters by vm.nrOfLetters.collectAsState()
     val gameState by vm.gameState.collectAsState()
+
 
     Scaffold {
         Column(
@@ -57,6 +66,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            //TOP SECTION (Title)
             Text(
                 modifier = Modifier
                     .padding(32.dp, 32.dp, 32.dp, 5.dp),
@@ -72,58 +82,101 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineMedium
             )
 
+
+            //MID SECTION
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.Start){
-                    Text("Type: ${gameState.gameType}")
-                    Text("Turns: 10")  //TODO: currently hardcoded as there is no option to change these
-                    Text("Interval: 2s")
-                    Text("N: 2")
-                }
+                //Options
+                Text(
+                    modifier = Modifier
+                        .padding(16.dp, 16.dp, 16.dp, 5.dp),
+                    text = "Options",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                settingsBox(
+                    text = "Turns: $nrOfTurns",
+                    onPlusClick = { vm.increaseNrOfTurns() },
+                    onMinusClick = { vm.decreaseNrOfTurns() }
+                )
+                settingsBox(
+                    text = "Interval: $timeInterval s",
+                    onPlusClick = { vm.increaseTimeInterval() },
+                    onMinusClick = { vm.decreaseTimeInterval() }
+                )
+                settingsBox(
+                    text = "N: $nBack",
+                    onPlusClick = { vm.increaseNBack() },
+                    onMinusClick = { vm.decreaseNBack() }
+                )
+                settingsBox(
+                    text = "GridSize: $gridSize",
+                    onPlusClick = { vm.increaseGridSize() },
+                    onMinusClick = { vm.decreaseGridSize() }
+                )
+                settingsBox(
+                    text = "Nr of letters: $nrOfLetters",
+                    onPlusClick = { vm.increaseNrOfLetters() },
+                    onMinusClick = { vm.decreaseNrOfLetters() }
+                )
 
-
-                Column(
+                //Game mode
+                Text(
+                    modifier = Modifier
+                        .padding(16.dp, 16.dp, 16.dp, 5.dp),
+                    text = "Game Mode",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(5.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Button(
                         onClick = { vm.setGameType(GameType.Visual) },
+                        modifier = Modifier.width(100.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if(gameState.gameType == GameType.Visual) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.inverseOnSurface
+                            containerColor = if (gameState.gameType == GameType.Visual) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Text(
                             text = "Visual",
                             color =
-                                if(gameState.gameType == GameType.Visual) MaterialTheme.colorScheme.onPrimary
+                                if (gameState.gameType == GameType.Visual) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurface
                         )
                     }
+                    Spacer(modifier = Modifier.width(10.dp))
                     Button(
                         onClick = { vm.setGameType(GameType.Audio) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if(gameState.gameType == GameType.Audio) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.inverseOnSurface
+                            containerColor = if (gameState.gameType == GameType.Audio) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Text(
                             text = "Audio",
                             color =
-                                if(gameState.gameType == GameType.Audio) MaterialTheme.colorScheme.onPrimary
+                                if (gameState.gameType == GameType.Audio) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurface
                         )
                     }
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(5.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Button(
                         onClick = { vm.setGameType(GameType.AudioVisual) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if(gameState.gameType == GameType.AudioVisual) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.inverseOnSurface
+                            else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Text(
@@ -133,13 +186,11 @@ fun HomeScreen(
                                 else MaterialTheme.colorScheme.onSurface
                         )
                     }
-
                 }
             }
 
 
-
-
+            //BOTTOM SECTION (Startbutton)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,12 +200,61 @@ fun HomeScreen(
             ) {
                 Button( onClick = onStartGame ) {
                     Text(
-                        modifier = Modifier.padding(16.dp),
-                        text = "Start Game".uppercase(),
-                        style = MaterialTheme.typography.displaySmall
+                        modifier = Modifier
+                            .padding(16.dp),
+                        text = "START GAME",
+                        style = MaterialTheme.typography.headlineLarge
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun settingsBox( //Total width 272
+    text: String,
+    onPlusClick: () -> Unit,
+    onMinusClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .padding(5.dp)
+            .fillMaxWidth()
+            .height(40.dp),
+        horizontalArrangement = Arrangement.Center
+    ){
+        Button(
+            onClick = onMinusClick,
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(56.dp),
+            shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
+        ) {
+            Text("-")
+        }
+        Button(
+            onClick = {},
+            enabled = false,
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(160.dp),
+            shape = RoundedCornerShape(0.dp),
+            colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Text(
+                text = text,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Button(
+            onClick = onPlusClick,
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(56.dp),
+            shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
+        ) {
+            Text("+")
         }
     }
 }
